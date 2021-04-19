@@ -1,5 +1,4 @@
 #include <SPI.h>
-#include <LoRa.h>
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
