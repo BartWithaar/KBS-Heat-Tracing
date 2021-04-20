@@ -3,13 +3,14 @@
 #include <Arduino.h>
 #include <LoRaSend.h>
 
+//Counter for packages
   uint8_t counter = 0;
 
-  //Counter for packages
   void LoRaSendInit(void){
   Serial.begin(115200);
   SPI.begin(SCK, MISO, MOSI, SS);
   LoRa.setPins(SS, RST, DI0);
+  LoRa.setFrequency(BAND);
   
   //Waiting for serial
   while (!Serial);
@@ -36,6 +37,8 @@ void LoRaSendPackage(String device_ID, double temp) {
   //Send message
   LoRa.print(device_ID);
   LoRa.print(temp);
+  LoRa.println(device_ID);
+
   //End package
   LoRa.endPacket();
 
