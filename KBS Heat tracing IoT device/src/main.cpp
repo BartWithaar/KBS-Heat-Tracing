@@ -56,7 +56,7 @@ void do_send(osjob_t* j);
 // first. When copying an EUI from ttnctl output, this means to reverse
 // the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
 // 0x70.
-static const u1_t PROGMEM APPEUI[8] =  { 0x20, 0x01, 0x01, 0x00, 0x00, 0xAC, 0x59, 0x00 };
+static const u1_t PROGMEM APPEUI[8] =  { 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0xAC, 0x59, 0x00 };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
 // This should also be in little endian format, see above.
@@ -78,10 +78,10 @@ const unsigned TX_INTERVAL = 60;
 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
-    .nss = 6,
+    .nss = 18,                 //18
     .rxtx = LMIC_UNUSED_PIN,
-    .rst = 5,
-    .dio = {2, 3, 4},
+    .rst = 14,              //14
+    .dio = {26, 33, 32},    //26,33,32
 };
 
 void printHex2(unsigned v) {
@@ -225,7 +225,7 @@ void do_send(osjob_t* j){
 }
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
     Serial.println(F("Starting"));
 
     #ifdef VCC_ENABLE
