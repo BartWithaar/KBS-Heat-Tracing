@@ -35,6 +35,14 @@
 #include <hal/hal.h>
 #include <SPI.h>
 #include <Arduino.h>
+#include <stdlib.h>
+#include <iostream>
+#include <string.h>
+#include <sstream>
+
+using namespace std;
+
+void do_send(osjob_t* j);
 
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
@@ -54,20 +62,29 @@
 // first. When copying an EUI from ttnctl output, this means to reverse
 // the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
 // 0x70.
-static const u1_t PROGMEM APPEUI[8]={ 0x20, 0x01, 0x01, 0x00, 0x00, 0xAC, 0x59, 0x00};
+static const u1_t PROGMEM APPEUI[8] =  { 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0xAC, 0x59, 0x00 };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
 // This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8]={ 0x78, 0xB1, 0x1B, 0xFE, 0xFF, 0xB2, 0x67, 0xAC };
+static const u1_t PROGMEM DEVEUI[8] =  { 0x78, 0xB1, 0x1B, 0xFE, 0xFF, 0xB2, 0x67, 0xAC };
 void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
-
+//AC67B2FFFE1BB178
 // This key should be in big endian format (or, since it is not really a
 // number but a block of memory, endianness does not really apply). In
 // practice, a key taken from ttnctl can be copied as-is.
 static const u1_t PROGMEM APPKEY[16] = { 0x95, 0x97, 0x1a, 0x37, 0xb8, 0x3a, 0x4d, 0x83, 0xbe, 0xb8, 0x6b, 0xf9, 0x56, 0x22, 0x16, 0x50 };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
-static uint8_t mydata[] = "Hello, world!";
+static double i = 155.2;
+
+template<typename T>
+string itos (T i){
+    stringstream s;
+    s << i;
+    return s.str();
+}
+
+static uint8_t mydata[1]; 
 static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
@@ -76,10 +93,10 @@ const unsigned TX_INTERVAL = 60;
 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
-    .nss = 6,
+    .nss = 18,                 //18
     .rxtx = LMIC_UNUSED_PIN,
-    .rst = 5,
-    .dio = {2, 3, 4},
+    .rst = 14,              //14
+    .dio = {26, 33, 32},    //26,33,32
 };
 
 void printHex2(unsigned v) {
@@ -164,7 +181,7 @@ void onEvent (ev_t ev) {
               Serial.println(F(" bytes of payload"));
             }
             // Schedule next transmission
-            //os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
+            os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
             break;
         case EV_LOST_TSYNC:
             Serial.println(F("EV_LOST_TSYNC"));
@@ -215,6 +232,12 @@ void do_send(osjob_t* j){
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
     } else {
+
+        string s =  itos(i);
+        static const char *c = s.c_str();
+        const char d = ((const char)(*c));
+        mydata[0] = {d}; 
+
         // Prepare upstream data transmission at the next possible time.
         LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
         Serial.println(F("Packet queued"));
@@ -240,8 +263,14 @@ void setup() {
 
     // Start job (sending automatically starts OTAA too)
     do_send(&sendjob);
+
+     
+    
 }
 
 void loop() {
-    os_runloop_once();
+    //os_runloop_once();
+    Serial.printf("%i", mydata[0], "\n");
+    
+
 }
