@@ -40,6 +40,7 @@ void do_send(osjob_t* j);
 
 // Saves the LMIC structure during DeepSleep
 RTC_DATA_ATTR lmic_t RTC_LMIC;
+bool GOTO_DEEPSLEEP = false;
 
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
@@ -174,7 +175,7 @@ void onEvent (ev_t ev) {
               Serial.println(F(" bytes of payload"));
             }
             // Schedule next transmission
-            os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
+            GOTO_DEEPSLEEP = true;
             break;
         case EV_LOST_TSYNC:
             Serial.println(F("EV_LOST_TSYNC"));
@@ -256,6 +257,51 @@ void do_send(osjob_t* j){
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
+void SaveLMICToRTC(int deepsleep_sec)
+{
+    Serial.println(F("Save LMIC to RTC"));
+    RTC_LMIC = LMIC;
+
+    // ESP32 can't track millis during DeepSleep and no option to advanced millis after DeepSleep.
+    // Therefore reset DutyCyles
+
+    unsigned long now = millis();
+
+    // EU Like Bands
+  #if defined(CFG_LMIC_EU_like)
+    Serial.println(F("Reset CFG_LMIC_EU_like band avail"));
+    for(int i = 0; i < MAX_BANDS; i++) {
+        ostime_t correctedAvail = RTC_LMIC.bands[i].avail - ((now/1000.0 + deepsleep_sec ) * OSTICKS_PER_SEC);
+        if(correctedAvail < 0) {
+            correctedAvail = 0;
+        }
+        RTC_LMIC.bands[i].avail = correctedAvail;
+    }
+
+    RTC_LMIC.globalDutyAvail = RTC_LMIC.globalDutyAvail - ((now/1000.0 + deepsleep_sec ) * OSTICKS_PER_SEC);
+    if(RTC_LMIC.globalDutyAvail < 0) 
+    {
+        RTC_LMIC.globalDutyAvail = 0;
+    }
+  #else
+    Serial.println(F("No DutyCycle recalculation function!"));
+  #endif
+}
+
+void LoadLMICFromRTC()
+{
+    Serial.println(F("Load LMIC from RTC"));
+    LMIC = RTC_LMIC;
+}
+
+void PrintRuntime()
+{
+    long seconds = millis() / 1000;
+    Serial.print("Runtime: ");
+    Serial.print(seconds);
+    Serial.println(" seconds");
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
@@ -267,6 +313,11 @@ void setup() {
     delay(1000);
     #endif
 
+    if (RTC_LMIC.seqnoUp != 0)
+    {
+        LoadLMICFromRTC();
+    }
+
     // LMIC init
     os_init();
     // Reset the MAC state. Session and pending data transfers will be discarded.
@@ -277,5 +328,17 @@ void setup() {
 }
 
 void loop() {
-    os_runloop_once();
+    static unsigned long lastPrintTime = 0;
+
+    if (!os_queryTimeCriticalJobs(ms2osticksRound((TX_INTERVAL * 1000))) && GOTO_DEEPSLEEP == true)
+    {
+        SaveLMICToRTC(TX_INTERVAL);
+        //GoDeepSleep();
+    }
+    else if (lastPrintTime + 2000 < millis())
+    {
+        Serial.println(F("Cannot sleep"));
+        PrintRuntime();
+        lastPrintTime = millis();
+    }
 }
