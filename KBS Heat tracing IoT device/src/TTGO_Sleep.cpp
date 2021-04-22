@@ -7,7 +7,7 @@ TTGO_Sleep::TTGO_Sleep(){
 
 //put the t-beam sleep with the least amount off power consumption as possible
 void TTGO_Sleep::low_power_deep_sleep_timer(uint64_t time_in_us){
-  turnOffRTC();
+  //turnOffRTC();
   LoRa.sleep();
   esp_sleep_enable_timer_wakeup(time_in_us);
   esp_deep_sleep_start();

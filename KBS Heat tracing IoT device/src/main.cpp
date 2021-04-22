@@ -19,11 +19,11 @@ void setup()
 {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
-  bootCount = 0;
+  ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
   print_wakeup_reason();
 
-	Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
+  Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
 	//Go to sleep now
   TTGO_sleep.low_power_deep_sleep_timer(TIME_TO_SLEEP * S_TO_uS_FACTOR);
 }
