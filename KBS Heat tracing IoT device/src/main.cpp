@@ -8,6 +8,8 @@ void print_wakeup_reason();
 
 #define S_TO_uS_FACTOR 1000000
 #define TIME_TO_SLEEP  5
+#define ADCPIN 2
+int adcData;
 
 RTC_DATA_ATTR int bootCount = 0;
 
@@ -22,6 +24,8 @@ void setup()
   ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
   print_wakeup_reason();
+  adcData = analogRead(ADCPIN);
+  Serial.println(adcData);
 
   Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
 	//Go to sleep now
