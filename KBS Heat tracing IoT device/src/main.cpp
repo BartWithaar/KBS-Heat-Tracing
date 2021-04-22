@@ -37,6 +37,10 @@
 #include <Arduino.h>
 
 void do_send(osjob_t* j);
+void low_power_deep_sleep_timer(uint64_t time_in_us);
+
+#define S_TO_uS_FACTOR 1000000
+#define TIME_TO_SLEEP  5
 
 // Saves the LMIC structure during DeepSleep
 RTC_DATA_ATTR lmic_t RTC_LMIC;
@@ -302,6 +306,12 @@ void PrintRuntime()
     Serial.println(" seconds");
 }
 
+void low_power_deep_sleep_timer(uint64_t time_in_us){
+  //turnOffRTC();
+  esp_sleep_enable_timer_wakeup(time_in_us);
+  esp_deep_sleep_start();
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
@@ -333,7 +343,7 @@ void loop() {
     if (!os_queryTimeCriticalJobs(ms2osticksRound((TX_INTERVAL * 1000))) && GOTO_DEEPSLEEP == true)
     {
         SaveLMICToRTC(TX_INTERVAL);
-        //GoDeepSleep();
+        low_power_deep_sleep_timer(TIME_TO_SLEEP * S_TO_uS_FACTOR);
     }
     else if (lastPrintTime + 2000 < millis())
     {
