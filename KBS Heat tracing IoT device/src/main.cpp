@@ -69,7 +69,12 @@ void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 static const u1_t PROGMEM APPKEY[16] = { 0x95, 0x97, 0x1a, 0x37, 0xb8, 0x3a, 0x4d, 0x83, 0xbe, 0xb8, 0x6b, 0xf9, 0x56, 0x22, 0x16, 0x50 };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
-static uint8_t mydata[] = "Hello, world!";
+int sensorMeasurement = 234;
+int sensorOne = 0;
+int sensorTwo = 0;
+int sensorThree = 0;
+static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
+
 static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
@@ -212,12 +217,36 @@ void onEvent (ev_t ev) {
     }
 }
 
+
+void setData()
+{
+    for(int i = 99; i<sensorMeasurement; i+=100)
+    {
+        sensorOne++;
+        
+    }
+    for(int i = 9; i<(sensorMeasurement-(sensorOne*100)); i+=10)
+    {
+        sensorTwo++;
+    }
+        sensorThree = sensorMeasurement-(sensorTwo*10)-(sensorOne*100);
+    sensorData[3]= sensorOne + '0';
+    sensorData[4]= sensorTwo + '0';
+    sensorData[5]= sensorThree + '0';
+}
+
+
+
 void do_send(osjob_t* j){
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
-    } else {
-        // Prepare upstream data transmission at the next possible time.
+    } else {       
+        setData();
+        static uint8_t mydata[7] = {sensorData[0],sensorData[1],sensorData[2],sensorData[3],sensorData[4],sensorData[5]} ;
+        Serial.printf("%s ",mydata);
+        // Serial.println(F(""));
+        // Prepare upstream data transmission at the next possible time.      
         LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
         Serial.println(F("Packet queued"));
     }
