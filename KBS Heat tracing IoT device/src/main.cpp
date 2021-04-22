@@ -38,6 +38,9 @@
 
 void do_send(osjob_t* j);
 
+// Saves the LMIC structure during DeepSleep
+RTC_DATA_ATTR lmic_t RTC_LMIC;
+
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
 // with values assigned by the TTN console. However, for regression tests,
