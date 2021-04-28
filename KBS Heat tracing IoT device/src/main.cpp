@@ -12,6 +12,45 @@
 int samples[NUMSAMPLES];
 int adcData;
 
+static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
+uint8_t sensorOne;
+uint8_t sensorTwo;
+uint8_t sensorThree;
+
+void setData(int16_t inputData)
+{
+  sensorOne = 0;
+  sensorTwo = 0;
+  sensorThree = 0;
+
+  uint16_t sensorOneFactor;
+  uint8_t sensorTwoFactor;
+
+  if(inputData < 0)
+  {
+    sensorData[2] = '-';
+    inputData = inputData*-1;
+  }
+
+  for(int i = 99; (i<inputData); i+=100)
+  {
+    sensorOne++;
+  }
+  sensorOneFactor = sensorOne*100;
+
+  for(int i = 9; i<(inputData-sensorOneFactor); i+=10)
+  {
+    sensorTwo++;
+  }
+  sensorTwoFactor = sensorTwo*10;
+
+  sensorThree = inputData-sensorTwoFactor-sensorOneFactor;
+
+  sensorData[3]= sensorOne + '0';
+  sensorData[4]= sensorTwo + '0';
+  sensorData[5]= sensorThree + '0';
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -38,13 +77,20 @@ void loop() {
 
   Serial.print("Average analog reading "); 
   Serial.println(average);
-
-  //average = (1000*average)/((4095-average)-1);
-  
+  Serial.println(CONVERTO_TO_DEGREES(average));
 
   Serial.print("Temp: ");
-  Serial.println(CONVERTO_TO_DEGREES(average));
-  Serial.println((average-240)/1.23);
+  //average = (1000*average)/((4095-average)-1);
+  setData(CONVERTO_TO_DEGREES(average));
+  Serial.println();
+
+  Serial.print("Temp: ");
+  //average = (1000*average)/((4095-average)-1);
+  setData(-100);
+  Serial.println();
+  
+ 
+  
 
 
   //adcData = analogRead(ADCPIN);
