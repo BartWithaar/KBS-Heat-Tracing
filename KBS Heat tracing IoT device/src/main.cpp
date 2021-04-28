@@ -36,22 +36,25 @@
 #include <SPI.h>
 #include <Arduino.h>
 
-void do_send(osjob_t* j);
-void low_power_deep_sleep_timer(uint64_t time_in_us);
-void setData(int16_t inputData);
-float calculateTemperature();
-
 #define S_TO_uS_FACTOR 1000000
 #define TIME_TO_SLEEP  300
 #define ADCPIN 2
 #define NUMSAMPLES 5
 #define CONVERTO_TO_DEGREES(input) (float((input-240)/1.23))
 
+// Initializing functions for later use
+void do_send(osjob_t* j);
+void low_power_deep_sleep_timer(uint64_t time_in_us);
+void setData(int16_t inputData);
+float calculateTemperature();
+void turnOffRTC();
+
+// Setting up globale variables
 int samples[NUMSAMPLES];
 float average;
-uint8_t sensorOne = 0;
-uint8_t sensorTwo = 0;
-uint8_t sensorThree = 0;
+uint8_t sensorOne;
+uint8_t sensorTwo;
+uint8_t sensorThree;
 static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
 
 // Saves the LMIC structure during DeepSleep
@@ -246,19 +249,24 @@ float calculateTemperature()
 
 void setData(int16_t inputData)
 {
-    for(int i = 99; i<inputData; i+=100)
-    {
-        sensorOne++;
-        
-    }
-    for(int i = 9; i<(inputData-(sensorOne*100)); i+=10)
-    {
-        sensorTwo++;
-    }
-        sensorThree = inputData-(sensorTwo*10)-(sensorOne*100);
-    sensorData[3]= sensorOne + '0';
-    sensorData[4]= sensorTwo + '0';
-    sensorData[5]= sensorThree + '0';
+  sensorOne = 0;
+  sensorTwo = 0;
+  sensorThree = 0;
+
+  for(int i = 99; (i<inputData)||((-i<inputData)); i+=100)
+  {
+    sensorOne++;
+      
+  }
+  for(int i = 9; i<(inputData-(sensorOne*100)); i+=10)
+  {
+    sensorTwo++;
+  }
+  sensorThree = inputData-(sensorTwo*10)-(sensorOne*100);
+
+  sensorData[3]= sensorOne + '0';
+  sensorData[4]= sensorTwo + '0';
+  sensorData[5]= sensorThree + '0';
 }
 
 void do_send(osjob_t* j){
@@ -325,22 +333,27 @@ void PrintRuntime()
 void low_power_deep_sleep_timer(uint64_t time_in_us){
   Serial.println(F("Go DeepSleep"));
   Serial.flush();
-  //turnOffRTC();
+  turnOffRTC();
   esp_sleep_enable_timer_wakeup(time_in_us);
   esp_deep_sleep_start();
+}
+
+void turnOffRTC(){
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);
 }
 
 void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
 
-    /*
     if (RTC_LMIC.seqnoUp != 0)
     {
         LoadLMICFromRTC();
     }
-    */
-
+    
     // LMIC init
     os_init();
     // Reset the MAC state. Session and pending data transfers will be discarded.
