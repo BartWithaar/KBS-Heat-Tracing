@@ -38,9 +38,21 @@
 
 void do_send(osjob_t* j);
 void low_power_deep_sleep_timer(uint64_t time_in_us);
+void setData(int16_t inputData);
+float calculateTemperature();
 
 #define S_TO_uS_FACTOR 1000000
 #define TIME_TO_SLEEP  300
+#define ADCPIN 2
+#define NUMSAMPLES 5
+#define CONVERTO_TO_DEGREES(input) (float((input-240)/1.23))
+
+int samples[NUMSAMPLES];
+float average;
+uint8_t sensorOne = 0;
+uint8_t sensorTwo = 0;
+uint8_t sensorThree = 0;
+static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
 
 // Saves the LMIC structure during DeepSleep
 RTC_DATA_ATTR lmic_t RTC_LMIC;
@@ -76,12 +88,6 @@ void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 // practice, a key taken from ttnctl can be copied as-is.
 static const u1_t PROGMEM APPKEY[16] = { 0x95, 0x97, 0x1a, 0x37, 0xb8, 0x3a, 0x4d, 0x83, 0xbe, 0xb8, 0x6b, 0xf9, 0x56, 0x22, 0x16, 0x50 };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
-
-int sensorMeasurement = 234;
-int sensorOne = 0;
-int sensorTwo = 0;
-int sensorThree = 0;
-static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
 
 static osjob_t sendjob;
 
@@ -225,32 +231,42 @@ void onEvent (ev_t ev) {
     }
 }
 
-
-void setData()
+float calculateTemperature()
 {
-    for(int i = 99; i<sensorMeasurement; i+=100)
+  average = 0;
+
+  for (int i=0; i< NUMSAMPLES; i++) {
+   samples[i] = analogRead(ADCPIN);
+  }
+  
+  average /= NUMSAMPLES;
+  
+  return(CONVERTO_TO_DEGREES(average));
+}
+
+void setData(int16_t inputData)
+{
+    for(int i = 99; i<inputData; i+=100)
     {
         sensorOne++;
         
     }
-    for(int i = 9; i<(sensorMeasurement-(sensorOne*100)); i+=10)
+    for(int i = 9; i<(inputData-(sensorOne*100)); i+=10)
     {
         sensorTwo++;
     }
-        sensorThree = sensorMeasurement-(sensorTwo*10)-(sensorOne*100);
+        sensorThree = inputData-(sensorTwo*10)-(sensorOne*100);
     sensorData[3]= sensorOne + '0';
     sensorData[4]= sensorTwo + '0';
     sensorData[5]= sensorThree + '0';
 }
-
-
 
 void do_send(osjob_t* j){
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
     } else {       
-        setData();
+        setData(calculateTemperature());
         static uint8_t mydata[7] = {sensorData[0],sensorData[1],sensorData[2],sensorData[3],sensorData[4],sensorData[5]} ;
         Serial.printf("%s ",mydata);
         // Serial.println(F(""));
@@ -318,17 +334,12 @@ void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
 
-    #ifdef VCC_ENABLE
-    // For Pinoccio Scout boards
-    pinMode(VCC_ENABLE, OUTPUT);
-    digitalWrite(VCC_ENABLE, HIGH);
-    delay(1000);
-    #endif
-
+    /*
     if (RTC_LMIC.seqnoUp != 0)
     {
         LoadLMICFromRTC();
     }
+    */
 
     // LMIC init
     os_init();
