@@ -253,16 +253,28 @@ void setData(int16_t inputData)
   sensorTwo = 0;
   sensorThree = 0;
 
-  for(int i = 99; (i<inputData)||((-i<inputData)); i+=100)
+  uint16_t sensorOneFactor;
+  uint8_t sensorTwoFactor;
+
+  if(inputData < 0)
+  {
+    sensorData[2] = '-';
+    inputData = inputData*-1;
+  }
+
+  for(int i = 99; (i<inputData); i+=100)
   {
     sensorOne++;
-      
   }
-  for(int i = 9; i<(inputData-(sensorOne*100)); i+=10)
+  sensorOneFactor = sensorOne*100;
+
+  for(int i = 9; i<(inputData-sensorOneFactor); i+=10)
   {
     sensorTwo++;
   }
-  sensorThree = inputData-(sensorTwo*10)-(sensorOne*100);
+  sensorTwoFactor = sensorTwo*10;
+
+  sensorThree = inputData-sensorTwoFactor-sensorOneFactor;
 
   sensorData[3]= sensorOne + '0';
   sensorData[4]= sensorTwo + '0';
