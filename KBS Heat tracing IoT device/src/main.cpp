@@ -36,10 +36,16 @@
 #include <SPI.h>
 #include <Arduino.h>
 
+// Defines
+// For going to sleep, TIME_TO_SLEEP is in seconds
 #define S_TO_uS_FACTOR 1000000
 #define TIME_TO_SLEEP  300
+
+// For the adc pin and the amount of samples
 #define ADCPIN 2
 #define NUMSAMPLES 5
+
+// For converting the adc value to degrees
 #define CONVERTO_TO_DEGREES(input) (float((input-240)/1.23))
 
 // Initializing functions for later use
@@ -50,35 +56,25 @@ float calculateTemperature();
 void turnOffRTC();
 
 // Setting up globale variables
-int samples[NUMSAMPLES];
-float average;
+// Variables for sending the data
 uint8_t sensorOne;
 uint8_t sensorTwo;
 uint8_t sensorThree;
 static uint8_t sensorData[] = {'T', ':', ' ', '0', '0', '0'};
 
-// Saves the LMIC structure during DeepSleep
-RTC_DATA_ATTR lmic_t RTC_LMIC;
+// Variables for reading the adc
+float average;
+uint8_t samples[NUMSAMPLES];
+
+// Variable for recognizing when to sleep
 bool GOTO_DEEPSLEEP = false;
 
-//
-// For normal use, we require that you edit the sketch to replace FILLMEIN
-// with values assigned by the TTN console. However, for regression tests,
-// we want to be able to compile these scripts. The regression tests define
-// COMPILE_REGRESSION_TEST, and in that case we define FILLMEIN to a non-
-// working but innocuous value.
-//
-#ifdef COMPILE_REGRESSION_TEST
-# define FILLMEIN 0
-#else
-# warning "You must replace the values marked FILLMEIN with real values from the TTN control panel!"
-# define FILLMEIN (#dont edit this, edit the lines that use FILLMEIN)
-#endif
+
+// Setting the credentials for sending OTAA messages over LoRa, these credentials are gathered from the KPN website
 
 // This EUI must be in little-endian format, so least-significant-byte
 // first. When copying an EUI from ttnctl output, this means to reverse
-// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
-// 0x70.
+// the bytes.
 static const u1_t PROGMEM APPEUI[8] =  { 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0xAC, 0x59, 0x00 };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
@@ -98,14 +94,22 @@ static osjob_t sendjob;
 // cycle limitations).
 const unsigned TX_INTERVAL = 60;
 
-// Pin mapping
+// Pin mapping for the LoRa
 const lmic_pinmap lmic_pins = {
-    .nss = 18,                 //18
+    .nss = 18,                  //18
     .rxtx = LMIC_UNUSED_PIN,
-    .rst = 14,              //14
-    .dio = {26, 33, 32},    //26,33,32
+    .rst = 14,                  //14
+    .dio = {26, 33, 32},        //26,33,32
 };
 
+/* @author  Unkown
+ * @date    14-4-2021
+ * @brief   Receives unsigned v and turnes it into hex
+ * @param   The input which is converted to hex values
+ * @note    Standard function
+ * @todo    Nothing
+ * @retval  None
+ */
 void printHex2(unsigned v) {
     v &= 0xff;
     if (v < 16)
@@ -113,6 +117,14 @@ void printHex2(unsigned v) {
     Serial.print(v, HEX);
 }
 
+/* @author  Unkown
+ * @date    14-4-2021
+ * @brief   Prints the event which has happened
+ * @param   The event which happened, this is to be decoded in the switch case
+ * @note    Standard function
+ * @todo    Nothing
+ * @retval  None
+ */
 void onEvent (ev_t ev) {
     Serial.print(os_getTime());
     Serial.print(": ");
@@ -234,6 +246,15 @@ void onEvent (ev_t ev) {
     }
 }
 
+
+/* @author  Simon Balk
+ * @date    26-4-2021
+ * @brief   Reads the adc, done 5 times for increased accuracy
+ * @param   None
+ * @note    None
+ * @todo    Nothing
+ * @retval  The average value measured by the adc, converted to degrees
+ */
 float calculateTemperature()
 {
   average = 0;
@@ -247,6 +268,14 @@ float calculateTemperature()
   return(CONVERTO_TO_DEGREES(average));
 }
 
+/* @author  Bart Withaar & Simon Balk
+ * @date    15-4-2021, updatet on 28-4-2021
+ * @brief   Takes a number and breaks it up into individual digits
+ * @param   The retreived value from the adc conversion
+ * @note    28-4-2021, now also works with negative numbers
+ * @todo    Nothing
+ * @retval  None
+ */
 void setData(int16_t inputData)
 {
   sensorOne = 0;
@@ -281,6 +310,14 @@ void setData(int16_t inputData)
   sensorData[5]= sensorThree + '0';
 }
 
+/* @author  Unkown
+ * @date    14-4-2021
+ * @brief   Queue the data which is set by the setData function
+ * @param   The job from which the message will be sent eventualy
+ * @note    Standard function
+ * @todo    Nothing
+ * @retval  None
+ */
 void do_send(osjob_t* j){
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
@@ -297,43 +334,14 @@ void do_send(osjob_t* j){
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
-void SaveLMICToRTC(int deepsleep_sec)
-{
-    Serial.println(F("Save LMIC to RTC"));
-    RTC_LMIC = LMIC;
-
-    // ESP32 can't track millis during DeepSleep and no option to advanced millis after DeepSleep.
-    // Therefore reset DutyCyles
-
-    unsigned long now = millis();
-
-    // EU Like Bands
-  #if defined(CFG_LMIC_EU_like)
-    Serial.println(F("Reset CFG_LMIC_EU_like band avail"));
-    for(int i = 0; i < MAX_BANDS; i++) {
-        ostime_t correctedAvail = RTC_LMIC.bands[i].avail - ((now/1000.0 + deepsleep_sec ) * OSTICKS_PER_SEC);
-        if(correctedAvail < 0) {
-            correctedAvail = 0;
-        }
-        RTC_LMIC.bands[i].avail = correctedAvail;
-    }
-
-    RTC_LMIC.globalDutyAvail = RTC_LMIC.globalDutyAvail - ((now/1000.0 + deepsleep_sec ) * OSTICKS_PER_SEC);
-    if(RTC_LMIC.globalDutyAvail < 0) 
-    {
-        RTC_LMIC.globalDutyAvail = 0;
-    }
-  #else
-    Serial.println(F("No DutyCycle recalculation function!"));
-  #endif
-}
-
-void LoadLMICFromRTC()
-{
-    Serial.println(F("Load LMIC from RTC"));
-    LMIC = RTC_LMIC;
-}
-
+/* @author  Simon Balk
+ * @date    16-4-2021
+ * @brief   Print the time which has passed
+ * @param   None
+ * @note    Nonne
+ * @todo    Nothing
+ * @retval  None
+ */
 void PrintRuntime()
 {
     long seconds = millis() / 1000;
@@ -342,6 +350,14 @@ void PrintRuntime()
     Serial.println(" seconds");
 }
 
+/* @author  Simon Balk
+ * @date    19-4-2021
+ * @brief   Calls the turnOffRTC function and sets a timer for wakeup before going into deep_sleep
+ * @param   Time before going to sleep
+ * @note    Nonne
+ * @todo    Nothing
+ * @retval  None
+ */
 void low_power_deep_sleep_timer(uint64_t time_in_us){
   Serial.println(F("Go DeepSleep"));
   Serial.flush();
@@ -350,6 +366,14 @@ void low_power_deep_sleep_timer(uint64_t time_in_us){
   esp_deep_sleep_start();
 }
 
+/* @author  Simon Balk
+ * @date    19-4-2021
+ * @brief   Turning off the rtc memory for increased power efficiency in deep_sleep mode
+ * @param   None
+ * @note    Nonne
+ * @todo    Nothing
+ * @retval  None
+ */
 void turnOffRTC(){
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
@@ -360,11 +384,6 @@ void turnOffRTC(){
 void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
-
-    if (RTC_LMIC.seqnoUp != 0)
-    {
-        LoadLMICFromRTC();
-    }
     
     // LMIC init
     os_init();
@@ -381,7 +400,6 @@ void loop() {
 
     if (!os_queryTimeCriticalJobs(ms2osticksRound((TX_INTERVAL * 1000))) && GOTO_DEEPSLEEP == true)
     {
-        SaveLMICToRTC(TX_INTERVAL);
         low_power_deep_sleep_timer(TIME_TO_SLEEP * S_TO_uS_FACTOR);
     }
     else if (lastPrintTime + 2000 < millis())
