@@ -39,7 +39,7 @@
 // Defines
 // For going to sleep, TIME_TO_SLEEP is in seconds
 #define S_TO_uS_FACTOR 1000000
-#define TIME_TO_SLEEP  300
+#define TIME_TO_SLEEP  15
 
 // For the adc pin and the amount of samples
 #define ADCPIN 2
@@ -259,8 +259,8 @@ float calculateTemperature()
 {
   average = 0;
 
-  for (int i=0; i< NUMSAMPLES; i++) {
-   samples[i] = analogRead(ADCPIN);
+  for (int i=0; i< 5; i++) {
+   average += analogRead(ADCPIN);
   }
   
   average /= NUMSAMPLES;
@@ -348,6 +348,8 @@ void PrintRuntime()
     Serial.print("Runtime: ");
     Serial.print(seconds);
     Serial.println(" seconds");
+    Serial.print("Weerstand meting: ");
+    Serial.println(analogRead(ADCPIN));
 }
 
 /* @author  Simon Balk
