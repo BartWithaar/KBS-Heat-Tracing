@@ -46,7 +46,7 @@
 #define NUMSAMPLES 5
 
 // For converting the adc value to degrees
-#define CONVERTO_TO_DEGREES(input) (float((input-240)/1.23))
+#define CONVERTO_TO_DEGREES(input) (float((input-265)/1.23))
 
 // Initializing functions for later use
 void do_send(osjob_t* j);
